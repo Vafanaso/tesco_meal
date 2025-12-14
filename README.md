@@ -42,7 +42,24 @@ The bot allows users to **interactively manage their shopping list directly in T
    - Mark products as bought
    - Review menu and recipes
 
+## 🛠️ Tech Stack
+
+- **Python 3.11**
+- **Aiogram** (Telegram bot framework)
+- **OpenAI API** (ChatGPT)
+- **SerpAPI** (Google Search API)
+- **PostgreSQL**
+- **Docker & Docker Compose**
+- **uv** (fast Python package manager)
+
 ---
 
-## 🧩 Architecture
+## 🚧 Project Status
+
+This project is **currently under active development**.
+
+Features, architecture, and implementation details may change as the project evolves.  
+Some functionality may be incomplete or experimental.
+
+Contributions, suggestions, and feedback are welcome.
 
