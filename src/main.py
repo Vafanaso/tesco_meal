@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Dispatcher
-from integrations.bot import bot
-from handlers.handlers import register_handlers  # your handlers
+from src.integrations.bot import bot
+from src.handlers.handlers import register_handlers  # your handlers
 
 async def main():
     dp = Dispatcher()
