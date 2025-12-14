@@ -2,8 +2,11 @@ from pyexpat.errors import messages
 from src.integrations.gpt import message_to_gpt
 from src.integrations.serp_api import serp_search
 
+# float for prices
+# custom exceptions in python
+
 def get_price(product:str) ->list|str:
-    prices:list = []
+    prices:list[str] = []
     results:dict= serp_search(product)
     print (results)
     try:
@@ -45,21 +48,22 @@ def get_price(product:str) ->list|str:
     return prices
 
 
-def get_shopping_list(max_money:str):
-    return message_to_gpt(f'give me a list of groceries for {max_money}czk, list of products in exact '
-                          f'Python list format like [mleko,chleb...] and so on, write only titles of the products,')
+def get_shopping_list(max_money:str) ->list:
+    products:list = []
+    tem_prod:list = []
+    initial_products =  message_to_gpt(f'give me a list of groceries for {max_money}czk, give me only products, without the prices, '
+                          f'you should make a list approximately for this ammount of money, but keep prices to yourself,'
+                          f' all i need is a list of products devided by coma, the names of the product should be in czech')
+    for char in initial_products:
+        if char not in [',', ' ']:
+            tem_prod.append(char)
+        elif char == ',':
+            products.append(''.join(tem_prod))
+            tem_prod = []
+        elif char == ' ':
+            continue
+    print(products)
+    return products
 
-
-
-lsit_tescp = (get_shopping_list('300'))
-
-for char in ['[',']', ' ']:
-    lsit_tescp.strip(char)
-norma_product_list:list = []
-goods:str = ''
-for char in lsit_tescp:
-    if char == ',':
-        norma_product_list.append(goods)
-        goods = ''
-    goods += char
-print(norma_product_list)
+# new_prod:list = get_shopping_list('400')
+# for item in new_prod
