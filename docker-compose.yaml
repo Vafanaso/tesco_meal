@@ -1,0 +1,25 @@
+services:
+#  db:
+#    image: postgres:16
+#    restart: always
+#    environment:
+#      POSTGRES_USER: botuser
+#      POSTGRES_PASSWORD: 1259
+#      POSTGRES_DB: beerbot
+#    volumes:
+#      - pg_data:/var/lib/postgresql/data
+#    ports:
+#      - "5432:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app/src
+    env_file:
+      - .env
+
+
+volumes:
+  pg_data:

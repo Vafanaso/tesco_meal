@@ -1,10 +1,6 @@
-import os
 from serpapi import GoogleSearch
-from dotenv import load_dotenv
-load_dotenv()
-
-API = os.getenv("SERP_API_KEY")
-
+from src.config.settings import SERP_KEY
+API = SERP_KEY
 
 def serp_search(product:str) ->dict:
     res_list:list = []
