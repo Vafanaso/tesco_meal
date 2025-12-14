@@ -45,6 +45,8 @@ def get_price(product:str) ->list|str:
         res = (tittle, price)
         if res[1] != 'GPT + SERP: no price':
             prices.append(res)
+
+    print(prices) # DELETE THIS
     return prices
 
 
@@ -62,8 +64,22 @@ def get_shopping_list(max_money:str) ->list:
             tem_prod = []
         elif char == ' ':
             continue
-    print(products)
+
+    print(products)#delete this line
+
     return products
 
-# new_prod:list = get_shopping_list('400')
-# for item in new_prod
+
+def choosing_right_product(list_of_product_and_prices:list[tuple], product:str):
+    prompt = f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, that you find the ,ost realistic and fiting to the initial search, which is {product}. The answer from you should be strictly a string with the name and price devided by coma, you can not take the name nor the price from anywhere else but the list that I gave you.  '
+    best_pick:str = message_to_gpt(prompt)
+
+    print(best_pick)#DELETE THIS
+    return best_pick
+
+#TESTING THE CHOOSING PART
+a = get_shopping_list('300')
+for index in range (3):
+    b = get_price(a[index])
+    c = choosing_right_product(b, a[index])
+
