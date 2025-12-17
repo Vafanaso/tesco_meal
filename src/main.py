@@ -1,12 +1,12 @@
 import asyncio
 from aiogram import Dispatcher
 from src.integrations.bot import bot
-from src.handlers.handlers import register_handlers  # your handlers
 from src.keyboards.keyboards import general_menu_keyboard
+from src.handlers import setup_routers
 
 async def main():
     dp = Dispatcher()
-    register_handlers(dp)
+    setup_routers(dp)
 
     print("🚀 Bot is starting...")
 

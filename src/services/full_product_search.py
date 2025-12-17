@@ -1,30 +1,29 @@
 from pyexpat.errors import messages
 from src.integrations.gpt import message_to_gpt
 from src.integrations.serp_api import serp_search
+from src.exceptions.exceptions import InvalidSearchResult
 
 # float for prices
 # custom exceptions in python
 
-def get_price(product:str) ->list|str:
+def get_price(product:str) ->list[tuple]:
     prices:list[str] = []
     i = 0
     results:dict= serp_search(product)
     try:
         max_products_ammount = len(results["organic_results"])
-    except KeyError:
-        return 'Invalid input, please try rephrasing '
+    except KeyError as e: # Does this count as custom exception EDIKU?
+        raise InvalidSearchResult("Invalid product name for Serp API") from e
 
-    print (results)
-    try:
-        organic_results = results["organic_results"]
-    except KeyError:
-        return 'Invalid input, please try rephrasing '
+    # print (results)
+
+    organic_results = results["organic_results"]
     while len(prices) < 3 and i < max_products_ammount:
-        try:
-            title = results["organic_results"][i]["title"]
-        except KeyError:
-            i += 1
-            continue
+        # try:
+        title = results["organic_results"][i]["title"]
+        # except KeyError:
+        #     i += 1
+        #     continue
 
         #  try to get price from SERP
         try:
@@ -53,11 +52,11 @@ def get_price(product:str) ->list|str:
             prices.append((title, price))
 
         i += 1  # IMPORTANT
-    print(prices)
+    # print(prices) # DELETE THIS
     return prices
 
 
-def get_shopping_list(max_money:str) ->list:
+def get_shopping_list(max_money:str) ->list[str]:
     products:list = []
     tem_prod:list = []
     initial_products =  message_to_gpt(f'give me a list of groceries for {max_money}czk, give me only products, without the prices, '
@@ -72,12 +71,12 @@ def get_shopping_list(max_money:str) ->list:
         elif char == ' ':
             continue
 
-    print(products)#delete this line
+    # print(products)#delete this line
 
     return products
 
 
-def choosing_right_product(list_of_product_and_prices:list[tuple], product:str):
+def choosing_right_product(list_of_product_and_prices:list[tuple], product:str) -> str:
     prompt = f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, that you find the ,ost realistic and fiting to the initial search, which is {product}. The answer from you should be strictly a string with the name and price devided by coma, you can not take the name nor the price from anywhere else but the list that I gave you.  '
     if len(list_of_product_and_prices) != 0:
         prompt = (f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, '
@@ -93,15 +92,21 @@ def choosing_right_product(list_of_product_and_prices:list[tuple], product:str):
         best_pick: str = message_to_gpt(prompt)+ 'last resort GPT'
 
 
-    print(best_pick)#DELETE THIS
+    # print(best_pick)#DELETE THIS
     return best_pick
 
-#TESTING THE CHOOSING PART
-a = get_shopping_list('300')
-for index in range (5):
-    b = get_price(a[index])
-    c = choosing_right_product(b, a[index])
+def full_search(monney:str) ->list[str]:
+    full_shop_list:list= get_shopping_list(monney)
+    final_list:list = []
+    for item in full_shop_list:
+        prod_options:list[tuple]= get_price(item)
+        best_pick= choosing_right_product(prod_options, item)
+        final_list.append(best_pick)
+    return final_list
 
+
+
+# print(full_search('50'))
 """
 Output N1
 
@@ -123,10 +128,11 @@ Tesco Butter 82% Fat 250g,59.90 Kč
 """
 """
 Possible time solutions and error handlers 
-1)Limit serp_api search area
-2)need 100% to take a product with the price from serp_api json result, iterate over pruducts until 3 products with prices will be found
+
 3) Switch to Olama Gpt from his majesty EDUARD THE FIRST 
+4)adjust so that it is not giving me more products that i am able to buy realicticaly or limit min ammount of money entered
 4) EDIK, KAK POTENCIALNO SDELAT PROCES BISTREE?
+5) take Kc out of the resulting product and check for , instead of . in prices
 """
 
 
