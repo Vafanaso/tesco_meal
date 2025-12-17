@@ -7,8 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from src.keyboards.keyboards import general_menu_keyboard
 from src.integrations.gpt import message_to_gpt
-from src.services.full_product_search import full_search
-
+from src.services.full_product_search import  full_search_async
 
 menu_router = Router()
 
@@ -31,6 +30,7 @@ async def start(message:Message, state: FSMContext) -> None:
 async def money(money:Message, state: FSMContext):
     await state.set_state(MenuStates.choosing_budget)
     processing = await money.answer("⏳ Processing...")
-    result = "\n".join(full_search(money.text))
+    result_list =  await full_search_async(money.text)
+    result = "\n".join(result_list)
     await processing.delete()
     await money.answer(result)

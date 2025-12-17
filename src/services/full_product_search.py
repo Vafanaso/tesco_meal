@@ -2,12 +2,14 @@ from pyexpat.errors import messages
 from src.integrations.gpt import message_to_gpt
 from src.integrations.serp_api import serp_search
 from src.exceptions.exceptions import InvalidSearchResult
+from asyncio import to_thread
+import asyncio
 
 # float for prices
 # custom exceptions in python
 
 def get_price(product:str) ->list[tuple]:
-    prices:list[str] = []
+    prices:list[tuple[str, str]] = []
     i = 0
     results:dict= serp_search(product)
     try:
@@ -27,7 +29,8 @@ def get_price(product:str) ->list[tuple]:
 
         #  try to get price from SERP
         try:
-            price = f'{results['organic_results'][i]['rich_snippet']['bottom']['detected_extensions']['price']} Kč'
+            price = f"{results['organic_results'][i]['rich_snippet']['bottom']['detected_extensions']['price']} SNIPPET"
+
         except (KeyError, TypeError):
             price = "No price found by serp_api"
 
@@ -56,6 +59,10 @@ def get_price(product:str) ->list[tuple]:
     return prices
 
 
+async def get_price_async(product:str):
+    return await to_thread(get_price, product)
+
+
 def get_shopping_list(max_money:str) ->list[str]:
     products:list = []
     tem_prod:list = []
@@ -76,7 +83,7 @@ def get_shopping_list(max_money:str) ->list[str]:
     return products
 
 
-def choosing_right_product(list_of_product_and_prices:list[tuple], product:str) -> str:
+def choosing_right_product(list_of_product_and_prices:list[tuple[str,str]], product:str) -> str:
     prompt = f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, that you find the ,ost realistic and fiting to the initial search, which is {product}. The answer from you should be strictly a string with the name and price devided by coma, you can not take the name nor the price from anywhere else but the list that I gave you.  '
     if len(list_of_product_and_prices) != 0:
         prompt = (f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, '
@@ -95,14 +102,39 @@ def choosing_right_product(list_of_product_and_prices:list[tuple], product:str) 
     # print(best_pick)#DELETE THIS
     return best_pick
 
-def full_search(monney:str) ->list[str]:
-    full_shop_list:list= get_shopping_list(monney)
-    final_list:list = []
-    for item in full_shop_list:
-        prod_options:list[tuple]= get_price(item)
-        best_pick= choosing_right_product(prod_options, item)
-        final_list.append(best_pick)
-    return final_list
+
+
+async def choosing_right_product_async(list_of_product_and_prices:list[tuple[str,str]], product:str):
+    return await to_thread(choosing_right_product,list_of_product_and_prices, product)
+
+
+
+# def full_search(monney:str) ->list[str]:
+#     full_shop_list:list= get_shopping_list(monney)
+#     final_list:list = []
+#     for item in full_shop_list:
+#         prod_options:list[tuple]= get_price(item)
+#         best_pick= choosing_right_product(prod_options, item)
+#         final_list.append(best_pick)
+#     return final_list
+
+
+async def process_product(product:str) -> str:
+    prod_options = await get_price_async(product)
+    best_pick = await choosing_right_product_async(prod_options, product)
+    return best_pick
+
+
+async def full_search_async(money: str) -> list[str]:
+    full_shop_list = await to_thread(get_shopping_list, money)
+
+    tasks = [
+        process_product(item)
+        for item in full_shop_list
+    ]
+
+    results = await asyncio.gather(*tasks)
+    return results
 
 
 
