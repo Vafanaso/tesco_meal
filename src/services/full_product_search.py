@@ -29,7 +29,7 @@ def get_price(product:str) ->list[tuple]:
 
         #  try to get price from SERP
         try:
-            price = f"{results['organic_results'][i]['rich_snippet']['bottom']['detected_extensions']['price']} SNIPPET"
+            price = f"{results['organic_results'][i]['rich_snippet']['bottom']['detected_extensions']['price']} "
 
         except (KeyError, TypeError):
             price = "No price found by serp_api"
@@ -135,6 +135,8 @@ async def full_search_async(money: str) -> list[str]:
 
     results = await asyncio.gather(*tasks)
     return results
+
+
 
 
 
