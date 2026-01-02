@@ -10,4 +10,4 @@ class Product (Base):
     __tablename__ = "product_info"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(30), nullable= False)
-    price: Mapped[float] = mapped_column(Float, nullable= False)
+    #price: Mapped[str] = mapped_column(String(10), nullable= False)

@@ -1,12 +1,20 @@
-from aiogram.types import (
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-)
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery,Message, ReplyKeyboardMarkup,KeyboardButton)
 
+from src.db.db import SessionLocal
+from src.db.models import Product
+from sqlalchemy import select
 
+async def products_keyboard():
+    async with SessionLocal() as session:
+        result = await session.execute(select(Product))
+        products = result.scalars().all()
 
+    buttons = []
+    for item in products:
+        emoji = "✅" if item.bought else "⬜"
+        buttons.append([InlineKeyboardButton(text=f'{emoji} {item.name}', callback_data=f'product:{item.id}')])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def general_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
@@ -23,70 +31,3 @@ def general_menu_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         input_field_placeholder="Choose an action…",
     )
-
-
-# def drinks_keyboard(drinks: list[Drink]) -> InlineKeyboardMarkup:
-#     rows = [
-#         [InlineKeyboardButton(text=d.name, callback_data=f"drink:view:{d.id}")]
-#         for d in drinks
-#     ]
-#
-#     if drinks:
-#         actions = [
-#             InlineKeyboardButton(text="✏️ Rename", callback_data="drink:rename"),
-#             InlineKeyboardButton(text="🗑️ Delete", callback_data="drink:delete"),
-#         ]
-#         rows.append(actions)
-#
-#     return InlineKeyboardMarkup(inline_keyboard=rows)
-#
-#
-# def drink_action_keyboard(action: str, drinks: list[Drink]) -> InlineKeyboardMarkup:
-#     rows = [
-#         [InlineKeyboardButton(text=d.name, callback_data=f"drink:{action}:{d.id}")]
-#         for d in drinks
-#     ]
-#     rows.append([InlineKeyboardButton(text="↩️ Back", callback_data="drink:back")])
-#     return InlineKeyboardMarkup(inline_keyboard=rows)
-#
-#
-# def drink_manage_keyboard(drink_id: int) -> InlineKeyboardMarkup:
-#     return InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [
-#                 InlineKeyboardButton(
-#                     text="+1", callback_data=f"drink:adjust:{drink_id}:add:1"
-#                 ),
-#             ],
-#             [
-#                 InlineKeyboardButton(
-#                     text="-1", callback_data=f"drink:adjust:{drink_id}:take:1"
-#                 ),
-#             ],
-#             [
-#                 InlineKeyboardButton(
-#                     text="📜 History", callback_data=f"drink:history:{drink_id}"
-#                 )
-#             ],
-#             [
-#                 InlineKeyboardButton(
-#                     text="🔄 Refresh", callback_data=f"drink:refresh:{drink_id}"
-#                 ),
-#                 InlineKeyboardButton(text="↩️ Back", callback_data="drink:back"),
-#             ],
-#         ]
-#     )
-#
-#
-# def delete_confirm_keyboard(drink_id: int) -> InlineKeyboardMarkup:
-#     return InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [
-#                 InlineKeyboardButton(
-#                     text="✅ Yes, delete",
-#                     callback_data=f"drink:delete:confirm:{drink_id}",
-#                 )
-#             ],
-#             [InlineKeyboardButton(text="↩️ Cancel", callback_data="drink:cancel")],
-#         ]
-#     )

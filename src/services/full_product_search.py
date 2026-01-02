@@ -1,9 +1,13 @@
 from pyexpat.errors import messages
+
+from src.db.db import SessionLocal
+from src.db.models import Product
 from src.integrations.gpt import message_to_gpt
 from src.integrations.serp_api import serp_search
 from src.exceptions.exceptions import InvalidSearchResult
 from asyncio import to_thread
 import asyncio
+from sqlalchemy import select
 
 # float for prices
 # custom exceptions in python
@@ -135,6 +139,17 @@ async def full_search_async(money: str) -> list[str]:
 
     results = await asyncio.gather(*tasks)
     return results
+
+
+async def seed(produts:list[str]):
+    async with SessionLocal() as session:
+        result = await session.execute(select(Product))
+        if result.first():
+            return
+
+        for item in produts:
+            session.add(Product(name = item))
+        await session.commit()
 
 
 
