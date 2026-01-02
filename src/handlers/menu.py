@@ -1,13 +1,15 @@
 from aiogram import Router, F
 from asyncio import to_thread
 
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart,  StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from src.keyboards.keyboards import general_menu_keyboard, products_keyboard
 from src.integrations.gpt import message_to_gpt
 from src.services.full_product_search import  full_search_async, seed
+from src.db.models import Product
+from src.db.db import init_db, SessionLocal
 
 menu_router = Router()
 
@@ -37,3 +39,16 @@ async def money(money:Message, state: FSMContext):
     # result = "\n".join(result_list)
     # await processing.delete()
     # await money.answer(result)
+
+@menu_router.callback_query(F.data.startswith("product:"))
+async def toggle_product(callback: CallbackQuery):
+    product_id = int(callback.data.split(":")[1])
+
+    async with SessionLocal() as session:
+        product = await session.get(Product, product_id)
+        product.bought = not product.bought
+        await session.commit()
+
+    kb = await products_keyboard()
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
