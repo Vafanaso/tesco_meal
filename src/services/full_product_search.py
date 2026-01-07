@@ -7,61 +7,53 @@ from asyncio import to_thread
 import asyncio
 from sqlalchemy import select
 
+from src.prompts import snipet_price_search
+from src.schemas.serp import SerpResults
+
+
 # float for prices
 # custom exceptions in python
 # prompts to file
 #TODO tipizacia
 #TODO same result all the time, work with db
+#TODO long prosuct names
 
 
 def get_price(product: str) -> list[tuple]:
+    """
+    Fuction uses serp_api to scrap google search for product,
+    :param product:str - a general name for the product
+    :return:prices:list[teple] - a list max 3 tuples that have a tittle of the product
+    in tesco and price that was found in serp_api json result
+    """
     prices: list[tuple[str, str]] = []
     i = 0
-    results: dict[str,str] = serp_search(product)
+    results:SerpResults = serp_search(product)
+    # print (results)
     try:
-        max_products_ammount = len(results["organic_results"])
+        max_products_ammount = len(results.organic_results)
     except KeyError as e:  # Does this count as custom exception EDIKU?
         raise InvalidSearchResult("Invalid product name for Serp API") from e
+    # print (max_products_ammount)
 
-    print (results)
-
-    organic_results = results["organic_results"]
     while len(prices) < 3 and i < max_products_ammount:
-        # try:
-        title = results["organic_results"][i]["title"]
-        # except KeyError:
-        #     i += 1
-        #     continue
+        item = results.organic_results[i]
+        title:str = item.title
 
-        #  try to get price from SERP
-        try:
-            price = f"{results['organic_results'][i]['rich_snippet']['bottom']['detected_extensions']['price']} "
-
-        except (KeyError, TypeError):
-            price = "No price found by serp_api"
-
-        #  fallback to GPT
-        if price == "No price found by serp_api":
-            try:
-                snippet = f'{results["organic_results"][i]["snippet"]}  But the best price is for this {results["organic_results"][i]["snippet_highlighted_words"]}'
-            except KeyError:
+        if item.rich_snippet and item.rich_snippet.bottom and item.rich_snippet.bottom.detected_extensions:
+            price = item.rich_snippet.bottom.detected_extensions.price
+        else:
+            snippet = results.organic_results[i].snippet
+            price = snipet_price_search(product, snippet)
+            if price in ("GPT + SERP: no price", "GPT + SERP: no price."):
                 i += 1
                 continue
 
-            price = message_to_gpt(
-                f"I am sending you a snippet regarding {product}. "
-                f"Find a price and send ONLY numbers + Kč. "
-                f"If no price, return exactly: GPT + SERP: no price. "
-                f"Snippet: {snippet}"
-            )
+        prices.append((title, price))
+        i+=1
 
-        # store only valid prices
-        if price not in ("GPT + SERP: no price", "GPT + SERP: no price."):
-            prices.append((title, price))
-
-        i += 1  # IMPORTANT
-    # print(prices) # DELETE THIS
     return prices
+
 
 
 async def get_price_async(product: str):
@@ -153,6 +145,8 @@ async def seed(produts: list[str]):
         for item in produts:
             session.add(Product(name=item))
         await session.commit()
+
+
 
 
 # print(full_search('50'))

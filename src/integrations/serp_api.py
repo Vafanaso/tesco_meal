@@ -21,5 +21,3 @@ def serp_search(product: str) -> SerpResults:
     results = SerpResults(**raw_data)
     return results
 
-res = serp_search("Mleko")
-print (res.organic_results[1].title)
