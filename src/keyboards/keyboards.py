@@ -1,8 +1,14 @@
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,CallbackQuery,Message, ReplyKeyboardMarkup,KeyboardButton)
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
 
 from src.db.db import SessionLocal
 from src.db.models import Product
 from sqlalchemy import select
+
 
 async def products_keyboard():
     async with SessionLocal() as session:
@@ -12,9 +18,16 @@ async def products_keyboard():
     buttons = []
     for item in products:
         emoji = "✅" if item.bought else "⬜"
-        buttons.append([InlineKeyboardButton(text=f'{emoji} {item.name}', callback_data=f'product:{item.id}')])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{emoji} {item.name}", callback_data=f"product:{item.id}"
+                )
+            ]
+        )
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 def general_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(

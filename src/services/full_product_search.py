@@ -1,5 +1,3 @@
-from pyexpat.errors import messages
-
 from src.db.db import SessionLocal
 from src.db.models import Product
 from src.integrations.gpt import message_to_gpt
@@ -11,17 +9,21 @@ from sqlalchemy import select
 
 # float for prices
 # custom exceptions in python
+# prompts to file
+#TODO tipizacia
+#TODO same result all the time, work with db
 
-def get_price(product:str) ->list[tuple]:
-    prices:list[tuple[str, str]] = []
+
+def get_price(product: str) -> list[tuple]:
+    prices: list[tuple[str, str]] = []
     i = 0
-    results:dict= serp_search(product)
+    results: dict[str,str] = serp_search(product)
     try:
         max_products_ammount = len(results["organic_results"])
-    except KeyError as e: # Does this count as custom exception EDIKU?
+    except KeyError as e:  # Does this count as custom exception EDIKU?
         raise InvalidSearchResult("Invalid product name for Serp API") from e
 
-    # print (results)
+    print (results)
 
     organic_results = results["organic_results"]
     while len(prices) < 3 and i < max_products_ammount:
@@ -46,7 +48,6 @@ def get_price(product:str) ->list[tuple]:
                 i += 1
                 continue
 
-
             price = message_to_gpt(
                 f"I am sending you a snippet regarding {product}. "
                 f"Find a price and send ONLY numbers + Kč. "
@@ -54,7 +55,7 @@ def get_price(product:str) ->list[tuple]:
                 f"Snippet: {snippet}"
             )
 
-        #store only valid prices
+        # store only valid prices
         if price not in ("GPT + SERP: no price", "GPT + SERP: no price."):
             prices.append((title, price))
 
@@ -63,54 +64,59 @@ def get_price(product:str) ->list[tuple]:
     return prices
 
 
-async def get_price_async(product:str):
+async def get_price_async(product: str):
     return await to_thread(get_price, product)
 
 
-def get_shopping_list(max_money:str) ->list[str]:
-    products:list = []
-    tem_prod:list = []
-    initial_products =  message_to_gpt(f'give me a list of groceries for {max_money}czk, give me only products, without the prices, '
-                          f'you should make a list approximately for this ammount of money, but keep prices to yourself,'
-                          f' all i need is a list of products devided by coma, the names of the product should be in czech')
+def get_shopping_list(max_money: str) -> list[str]:
+    products: list = []
+    tem_prod: list = []
+    initial_products = message_to_gpt(
+        f"give me a list of groceries for {max_money}czk, give me only products, without the prices, "
+        f"you should make a list approximately for this ammount of money, but keep prices to yourself,"
+        f" all i need is a list of products devided by coma, the names of the product should be in czech"
+    )
     for char in initial_products:
-        if char not in [',', ' ']:
+        if char not in [",", " "]:
             tem_prod.append(char)
-        elif char == ',':
-            products.append(''.join(tem_prod))
+        elif char == ",":
+            products.append("".join(tem_prod))
             tem_prod = []
-        elif char == ' ':
+        elif char == " ":
             continue
 
-    # print(products)#delete this line
 
     return products
 
 
-def choosing_right_product(list_of_product_and_prices:list[tuple[str,str]], product:str) -> str:
-    prompt = f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, that you find the ,ost realistic and fiting to the initial search, which is {product}. The answer from you should be strictly a string with the name and price devided by coma, you can not take the name nor the price from anywhere else but the list that I gave you.  '
+def choosing_right_product(
+    list_of_product_and_prices: list[tuple[str, str]], product: str
+) -> str:
+    prompt = f"here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, that you find the ,ost realistic and fiting to the initial search, which is {product}. The answer from you should be strictly a string with the name and price devided by coma, you can not take the name nor the price from anywhere else but the list that I gave you.  "
     if len(list_of_product_and_prices) != 0:
-        prompt = (f'here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, '
-                  f'that you find the ,ost realistic and fiting to the initial search, which is {product}. '
-                  f'The answer from you should be strictly a string with the name and price devided by coma, '
-                  f'you can not take the name nor the price from anywhere else but the list that I gave you.  ')
-        best_pick:str = message_to_gpt(prompt)
-    else:#THE LAST BASTION TO FIND THE PRICE
         prompt = (
-            f' I want to buy {product} in Tesco store in Prague, Czech Republic, please tell me the approximate price for it'
-            f'The answer from you should be strictly a string with the name and price devided by coma, '
-            f'you can not take the name  from anywhere else but the name that I gave you.  ')
-        best_pick: str = message_to_gpt(prompt)+ 'last resort GPT'
-
+            f"here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, "
+            f"that you find the ,ost realistic and fiting to the initial search, which is {product}. "
+            f"The answer from you should be strictly a string with the name and price devided by coma, "
+            f"you can not take the name nor the price from anywhere else but the list that I gave you.  "
+        )
+        best_pick: str = message_to_gpt(prompt)
+    else:  # THE LAST BASTION TO FIND THE PRICE
+        prompt = (
+            f" I want to buy {product} in Tesco store in Prague, Czech Republic, please tell me the approximate price for it"
+            f"The answer from you should be strictly a string with the name and price devided by coma, "
+            f"you can not take the name  from anywhere else but the name that I gave you.  "
+        )
+        best_pick: str = message_to_gpt(prompt) + "last resort GPT"
 
     # print(best_pick)#DELETE THIS
     return best_pick
 
 
-
-async def choosing_right_product_async(list_of_product_and_prices:list[tuple[str,str]], product:str):
-    return await to_thread(choosing_right_product,list_of_product_and_prices, product)
-
+async def choosing_right_product_async(
+    list_of_product_and_prices: list[tuple[str, str]], product: str
+):
+    return await to_thread(choosing_right_product, list_of_product_and_prices, product)
 
 
 # def full_search(monney:str) ->list[str]:
@@ -123,7 +129,7 @@ async def choosing_right_product_async(list_of_product_and_prices:list[tuple[str
 #     return final_list
 
 
-async def process_product(product:str) -> str:
+async def process_product(product: str) -> str:
     prod_options = await get_price_async(product)
     best_pick = await choosing_right_product_async(prod_options, product)
     return best_pick
@@ -132,27 +138,21 @@ async def process_product(product:str) -> str:
 async def full_search_async(money: str) -> list[str]:
     full_shop_list = await to_thread(get_shopping_list, money)
 
-    tasks = [
-        process_product(item)
-        for item in full_shop_list
-    ]
+    tasks = [process_product(item) for item in full_shop_list]
 
     results = await asyncio.gather(*tasks)
     return results
 
 
-async def seed(produts:list[str]):
+async def seed(produts: list[str]):
     async with SessionLocal() as session:
         result = await session.execute(select(Product))
         if result.first():
             return
 
         for item in produts:
-            session.add(Product(name = item))
+            session.add(Product(name=item))
         await session.commit()
-
-
-
 
 
 # print(full_search('50'))
