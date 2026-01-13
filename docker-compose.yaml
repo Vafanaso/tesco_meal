@@ -1,15 +1,15 @@
 services:
-#  db:
-#    image: postgres:16
-#    restart: always
-#    environment:
-#      POSTGRES_USER: botuser
-#      POSTGRES_PASSWORD: 1259
-#      POSTGRES_DB: beerbot
-#    volumes:
-#      - pg_data:/var/lib/postgresql/data
-#    ports:
-#      - "5432:5432"
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: botuser
+      POSTGRES_PASSWORD: 1258
+      POSTGRES_DB: tesco_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   backend:
     build:
@@ -19,6 +19,8 @@ services:
       - ./src:/app/src
     env_file:
       - .env
+    depends_on:
+      - db
 
 
 volumes:
