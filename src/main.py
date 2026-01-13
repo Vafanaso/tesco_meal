@@ -3,8 +3,12 @@ from aiogram import Dispatcher
 from src.integrations.bot import bot
 from src.keyboards.keyboards import general_menu_keyboard
 from src.handlers import setup_routers
+from src.db.db import init_db
+
 
 async def main():
+    await init_db()
+
     dp = Dispatcher()
     setup_routers(dp)
 
