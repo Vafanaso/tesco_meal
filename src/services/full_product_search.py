@@ -76,29 +76,21 @@ def get_recipe(type:str, number_of_days:int) -> str:
 
     return recipe
 
-def get_shopping_list(recipe:str) -> list[str]:
+def get_shopping_list(recipe: str) -> list[str]:
     """
-    fucntion takes a recipe  and asks gpt and  gives a list of products for this recipe
+    fucntion takes a recipe and asks gpt and gives a list of products for this recipe
     :param recipe:str - a recipe for meals
     :return: products:list[str] - list of products that you should buy
     """
-    products: list = []
-    temp_prod: list = []
     initial_products = shopping_list(recipe)
 
+    # This replaces the 'for char in initial_products' loop
+    # 1. split(",") breaks the string into a list at every comma
+    # 2. .strip() removes leading/trailing spaces but keeps spaces BETWEEN words
+    # 3. 'if item.strip()' ensures no empty strings are added to the list
+    products = [item.strip() for item in initial_products.split(",") if item.strip()]
 
-# converting a string of chars into a propper list
-    for char in initial_products:
-        if char not in [",", " "]:
-            temp_prod.append(char)
-        elif char == ",":
-            products.append("".join(temp_prod))
-            temp_prod = []
-        elif char == " ":
-            continue
-
-    print(products)#TODO DELETE THIS
-
+    print(products)  # TODO DELETE THIS
     return products
 
 
