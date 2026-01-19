@@ -14,7 +14,6 @@ from src.schemas.serp import SerpResults
 # float for prices
 # custom exceptions in python
 # prompts to file
-#TODO tipizacia
 #TODO same result all the time, work with db
 #TODO long product names
 
@@ -52,8 +51,8 @@ def get_price(product: str) -> list[tuple]:
         prices.append((title, price))
         i+=1
 
-    print(product)#TODO DELETE THIS
-    print(prices)#TODO DELETE THIS
+    # print(product)#TODO DELETE THIS
+    # print(prices)#TODO DELETE THIS
 
     return prices
 
@@ -62,17 +61,17 @@ def get_price(product: str) -> list[tuple]:
 async def get_price_async(product: str):
     return await to_thread(get_price, product)
 
-def get_recipe(type:str, number_of_days:int) -> str:
+def get_recipe(recipe_option:str, number_of_days:int) -> str:
     """
     function makes a recipe with chatgpt
-    :param type: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
+    :param recipe_option: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
     :param number_of_days:int - a number of days that recipe should be done for
     :return: recipe:str - a recipe for the meals
     """
-    recipe = get_recipe_from_gpt(type, number_of_days)
+    recipe = get_recipe_from_gpt(recipe_option, number_of_days)
 
     #
-    print(recipe)#TODO DELETE THIS
+    # print(recipe)#TODO DELETE THIS
 
     return recipe
 
@@ -90,7 +89,7 @@ def get_shopping_list(recipe: str) -> list[str]:
     # 3. 'if item.strip()' ensures no empty strings are added to the list
     products = [item.strip() for item in initial_products.split(",") if item.strip()]
 
-    print(products)  # TODO DELETE THIS
+    # print(products)  # TODO DELETE THIS
     return products
 
 
@@ -114,7 +113,7 @@ def choosing_right_product(
         )
         best_pick: str = message_to_gpt(prompt) + " last resort GPT"
 
-    print(best_pick)#TODO DELETE
+    # print(best_pick)#TODO DELETE
 
     return best_pick
 
@@ -151,7 +150,7 @@ async def full_search_async(type:str, number_of_days:int) -> list[str]:
 
     results = await asyncio.gather(*tasks)
 
-    print(results)#TODO DELETE THIS
+    # print(results)#TODO DELETE THIS
     return results
 
 
@@ -169,10 +168,10 @@ async def seed(products: list[str]):
 
 
 
-async def test_all():
-    await full_search_async("cheep", 2)
-
-asyncio.run(test_all())
+# async def test_all():
+#     await full_search_async("cheep", 2)
+#
+# asyncio.run(test_all())
 """
 Output N1
 

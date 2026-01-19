@@ -28,13 +28,13 @@ async def start(message: Message, state: FSMContext) -> None:
 
 
 @menu_router.message(StateFilter(MenuStates.start), F.text.isdigit())
-async def money(money: Message, state: FSMContext):
+async def menu(menu: Message, state: FSMContext):
     await state.set_state(MenuStates.choosing_budget)
-    processing = await money.answer("⏳ Processing...")
-    result_list = await full_search_async(money.text)
+    processing = await menu.answer("⏳ Processing...")
+    result_list = await full_search_async(menu.text, 2)
     await seed(result_list)
     kb = await products_keyboard()
-    await money.answer("your list", reply_markup=kb)
+    await menu.answer("your list", reply_markup=kb)
     # result = "\n".join(result_list)
     # await processing.delete()
     # await money.answer(result)
