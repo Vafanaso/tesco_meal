@@ -1,44 +1,71 @@
 from aiogram import Router, F
-
-from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart, StateFilter
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from src.keyboards.keyboards import general_menu_keyboard, products_keyboard
+from aiogram.fsm.state import State, StatesGroup # Added missing imports
+from src.keyboards.keyboards import (
+    general_menu_keyboard,
+    products_keyboard,
+    menu_type_keyboard,
+    days_keyboard
+)
 from src.services.full_product_search import full_search_async, seed
 from src.db.models import Product
 from src.db.db import SessionLocal
 
 menu_router = Router()
 
-
 class MenuStates(StatesGroup):
-    start = State()
-    choosing_budget = State()
+    choosing_type = State()
+    choosing_days = State()
+    processing = State()
     products_listing = State()
 
-
-@menu_router.message(F.text == "Start" or F.text == CommandStart)
-async def start(message: Message, state: FSMContext) -> None:
-    await state.set_state(MenuStates.start)
+@menu_router.message(CommandStart()) # Correct filter usage
+@menu_router.message(F.text == "Start")
+async def cmd_start(message: Message, state: FSMContext):
+    await state.clear()
+    await state.set_state(MenuStates.choosing_type)
     await message.answer(
-        "👋 AHOJ! Use buttons below",
-        reply_markup=general_menu_keyboard(),
+        "👋 Welcome! Choose your menu type:",
+        reply_markup=menu_type_keyboard()
+    )
+
+@menu_router.message(MenuStates.choosing_type, F.text.in_(["Budget", "Normal", "Snob"]))
+async def choose_type(message: Message, state: FSMContext):
+    await state.update_data(menu_type=message.text.lower())
+    await state.set_state(MenuStates.choosing_days)
+    await message.answer(
+        f"Selected: {message.text}. Now choose for how many days:",
+        reply_markup=days_keyboard()
     )
 
 
-@menu_router.message(StateFilter(MenuStates.start), F.text.isdigit())
-async def menu(menu: Message, state: FSMContext):
-    await state.set_state(MenuStates.choosing_budget)
-    processing = await menu.answer("⏳ Processing...")
-    result_list = await full_search_async(menu.text, 2)
-    await seed(result_list)
-    kb = await products_keyboard()
-    await menu.answer("your list", reply_markup=kb)
-    # result = "\n".join(result_list)
-    # await processing.delete()
-    # await money.answer(result)
+@menu_router.message(MenuStates.choosing_days, F.text.in_(["1", "2", "3"]))
+async def choose_days(message: Message, state: FSMContext):
+    user_data = await state.get_data()
+    menu_type = user_data.get('menu_type')
+    num_days = int(message.text)
 
+    await state.set_state(MenuStates.processing)
+    await message.answer(
+        f"⏳ Generating {menu_type} menu for {num_days} days...",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    # Unpack the recipe text and the result list
+    recipe_text, result_list = await full_search_async(menu_type, num_days)
+
+    # 1. Send the Menu/Recipe text first
+    await message.answer(f"📋 **Your Menu:**\n\n{recipe_text}", parse_mode="Markdown")
+
+    # 2. Seed the database with the products
+    await seed(result_list)
+
+    # 3. Send the interactive shopping list keyboard
+    kb = await products_keyboard()
+    await message.answer("🛒 **Your Shopping List:**", reply_markup=kb)
+    await state.set_state(MenuStates.products_listing)
 
 @menu_router.callback_query(F.data.startswith("product:"))
 async def toggle_product(callback: CallbackQuery):
@@ -46,11 +73,10 @@ async def toggle_product(callback: CallbackQuery):
 
     async with SessionLocal() as session:
         product = await session.get(Product, product_id)
-        product.bought = not product.bought
-        await session.commit()
+        if product:
+            product.bought = not product.bought
+            await session.commit()
 
     kb = await products_keyboard()
     await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
-
-#TODO add proccesing to ignore

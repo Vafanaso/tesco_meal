@@ -44,3 +44,19 @@ def general_menu_keyboard() -> ReplyKeyboardMarkup:
         resize_keyboard=True,
         input_field_placeholder="Choose an action…",
     )
+
+def menu_type_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Budget"), KeyboardButton(text="Normal"), KeyboardButton(text="Snob")]
+        ],
+        resize_keyboard=True
+    )
+
+def days_keyboard():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="1"), KeyboardButton(text="2"), KeyboardButton(text="3")]
+        ],
+        resize_keyboard=True
+    )

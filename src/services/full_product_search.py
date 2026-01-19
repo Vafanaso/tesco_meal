@@ -5,7 +5,7 @@ from src.integrations.serp_api import serp_search
 from src.exceptions.exceptions import InvalidSearchResult
 from asyncio import to_thread
 import asyncio
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from src.prompts import snippet_price_search, shopping_list,  get_recipe_from_gpt
 from src.schemas.serp import SerpResults
@@ -102,7 +102,7 @@ def choosing_right_product(
             f"here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, "
             f"that you find the ,ost realistic and fiting to the initial search, which is {product}. "
             f"The answer from you should be strictly a string with the name and price devided by coma, "
-            f"you can not take the name nor the price from anywhere else but the list that I gave you.  "
+            f"you can not take the name nor the price from anywhere else but the list that I gave you. and be carefull, voda is not a vodka  "
         )
         best_pick: str = message_to_gpt(prompt)
     else:  # THE LAST BASTION TO FIND THE PRICE
@@ -140,7 +140,7 @@ async def process_product(product: str) -> str:
     return best_pick
 
 
-async def full_search_async(type:str, number_of_days:int) -> list[str]:
+async def full_search_async(type:str, number_of_days:int) -> tuple[str,list[str]]:
     recipe = get_recipe(type, number_of_days)
 
 
@@ -151,14 +151,12 @@ async def full_search_async(type:str, number_of_days:int) -> list[str]:
     results = await asyncio.gather(*tasks)
 
     # print(results)#TODO DELETE THIS
-    return results
+    return recipe, results
 
 
 async def seed(products: list[str]):
     async with SessionLocal() as session:
-        result = await session.execute(select(Product))
-        if result.first():
-            return
+        await session.execute(delete(Product))
 
         for item in products:
             session.add(Product(name=item))
