@@ -9,7 +9,7 @@ from src.keyboards.keyboards import (
     menu_type_keyboard,
     days_keyboard
 )
-from src.services.full_product_search import full_search_async, seed
+from src.services.full_product_search import seed, full_search_async_serp, full_search_async_gpt
 from src.db.models import Product
 from src.db.db import SessionLocal
 
@@ -45,7 +45,7 @@ async def choose_type(message: Message, state: FSMContext):
 async def choose_days(message: Message, state: FSMContext):
     user_data = await state.get_data()
     menu_type = user_data.get('menu_type')
-    num_days = int(message.text)
+    num_days = message.text
 
     await state.set_state(MenuStates.processing)
     await message.answer(
@@ -54,7 +54,9 @@ async def choose_days(message: Message, state: FSMContext):
     )
 
     # Unpack the recipe text and the result list
-    recipe_text, result_list = await full_search_async(menu_type, num_days)
+    # recipe_text, result_list = await full_search_async_serp(menu_type, num_days)
+    recipe_text, result_list = await full_search_async_gpt(menu_type, num_days)
+
 
     # 1. Send the Menu/Recipe text first
     await message.answer(f"📋 **Your Menu:**\n\n{recipe_text}", parse_mode="Markdown")

@@ -29,6 +29,12 @@ async def products_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def start_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[KeyboardButton(text="Start")],
+        resize_keyboard= True,
+        input_field_placeholder="Press start to begin",
+    )
 def general_menu_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[

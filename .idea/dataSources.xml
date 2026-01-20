@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="tesco_db@localhost" uuid="b85edacb-1335-4c6d-9cfe-2be07e14f8cd">
+    <data-source source="LOCAL" name="tesco_db@localhost" uuid="6c7eac11-3f69-4bed-87ae-4b8a171a7656">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>

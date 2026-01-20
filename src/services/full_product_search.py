@@ -9,6 +9,8 @@ from sqlalchemy import select, delete
 
 from src.prompts import snippet_price_search, shopping_list,  get_recipe_from_gpt
 from src.schemas.serp import SerpResults
+from src.services.gpt_service import choosing_right_product_async, get_shopping_list, get_prices_gpt
+from src.services.serp_service import get_price_async
 
 
 # float for prices
@@ -18,110 +20,71 @@ from src.schemas.serp import SerpResults
 #TODO long product names
 
 
-def get_price(product: str) -> list[tuple]:
-    """
-    Fuction uses serp_api to scrap google search for product,
-    :param product:str - a general name for the product
-    :return:prices:list[teple] - a list max 3 tuples that have a tittle of the product
-    in tesco and price that was found in serp_api json result
-    """
-    prices: list[tuple[str, str]] = []
-    i = 0
-    results:SerpResults = serp_search(product)
-    # print (results)
-    try:
-        max_products_ammount = len(results.organic_results)
-    except KeyError as e:  # Does this count as custom exception EDIKU?
-        raise InvalidSearchResult("Invalid product name for Serp API") from e
-    # print (max_products_ammount)
 
-    while len(prices) < 3 and i < max_products_ammount:
-        item = results.organic_results[i]
-        title:str = item.title
+# async def get_price_async(product: str):
+#     return await to_thread(get_price, product)
 
-        if item.rich_snippet and item.rich_snippet.bottom and item.rich_snippet.bottom.detected_extensions:
-            price = item.rich_snippet.bottom.detected_extensions.price
-        else:
-            snippet = results.organic_results[i].snippet
-            price = snippet_price_search(product, snippet)# GPT search for price in snippet
-            if price in ("GPT + SERP: no price", "GPT + SERP: no price."):
-                i += 1
-                continue
+# def get_recipe(recipe_option:str, number_of_days:int) -> str:
+#     """
+#     function makes a recipe with chatgpt
+#     :param recipe_option: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
+#     :param number_of_days:int - a number of days that recipe should be done for
+#     :return: recipe:str - a recipe for the meals
+#     """
+#     recipe = get_recipe_from_gpt(recipe_option, number_of_days)
+#
+#     #
+#     # print(recipe)#TODO DELETE THIS
+#
+#     return recipe
 
-        prices.append((title, price))
-        i+=1
-
-    # print(product)#TODO DELETE THIS
-    # print(prices)#TODO DELETE THIS
-
-    return prices
+# def get_shopping_list(recipe: str) -> list[str]:
+#     """
+#     fucntion takes a recipe and asks gpt and gives a list of products for this recipe
+#     :param recipe:str - a recipe for meals
+#     :return: products:list[str] - list of products that you should buy
+#     """
+#     initial_products = shopping_list(recipe)
+#
+#     # This replaces the 'for char in initial_products' loop
+#     # 1. split(",") breaks the string into a list at every comma
+#     # 2. .strip() removes leading/trailing spaces but keeps spaces BETWEEN words
+#     # 3. 'if item.strip()' ensures no empty strings are added to the list
+#     products = [item.strip() for item in initial_products.split(",") if item.strip()]
+#
+#     # print(products)  # TODO DELETE THIS
+#     return products
 
 
-
-async def get_price_async(product: str):
-    return await to_thread(get_price, product)
-
-def get_recipe(recipe_option:str, number_of_days:int) -> str:
-    """
-    function makes a recipe with chatgpt
-    :param recipe_option: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
-    :param number_of_days:int - a number of days that recipe should be done for
-    :return: recipe:str - a recipe for the meals
-    """
-    recipe = get_recipe_from_gpt(recipe_option, number_of_days)
-
-    #
-    # print(recipe)#TODO DELETE THIS
-
-    return recipe
-
-def get_shopping_list(recipe: str) -> list[str]:
-    """
-    fucntion takes a recipe and asks gpt and gives a list of products for this recipe
-    :param recipe:str - a recipe for meals
-    :return: products:list[str] - list of products that you should buy
-    """
-    initial_products = shopping_list(recipe)
-
-    # This replaces the 'for char in initial_products' loop
-    # 1. split(",") breaks the string into a list at every comma
-    # 2. .strip() removes leading/trailing spaces but keeps spaces BETWEEN words
-    # 3. 'if item.strip()' ensures no empty strings are added to the list
-    products = [item.strip() for item in initial_products.split(",") if item.strip()]
-
-    # print(products)  # TODO DELETE THIS
-    return products
+# def choosing_right_product(
+#     list_of_product_and_prices: list[tuple[str, str]], product: str
+# ) -> str:
+#
+#     if len(list_of_product_and_prices) != 0:
+#         prompt = (
+#             f"here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, "
+#             f"that you find the ,ost realistic and fiting to the initial search, which is {product}. "
+#             f"The answer from you should be strictly a string with the name and price devided by coma, "
+#             f"you can not take the name nor the price from anywhere else but the list that I gave you. and be carefull, voda is not a vodka  "
+#         )
+#         best_pick: str = message_to_gpt(prompt)
+#     else:  # THE LAST BASTION TO FIND THE PRICE
+#         prompt = (
+#             f" I want to buy {product} in Tesco store in Prague, Czech Republic, please tell me the approximate price for it"
+#             f"The answer from you should be strictly a string with the name and price devided by coma, "
+#             f"you can not take the name  from anywhere else but the name that I gave you.  "
+#         )
+#         best_pick: str = message_to_gpt(prompt) + " last resort GPT"
+#
+#     # print(best_pick)#TODO DELETE
+#
+#     return best_pick
 
 
-def choosing_right_product(
-    list_of_product_and_prices: list[tuple[str, str]], product: str
-) -> str:
-
-    if len(list_of_product_and_prices) != 0:
-        prompt = (
-            f"here is the list of products and prices{list_of_product_and_prices}, i want you to choose the best option, "
-            f"that you find the ,ost realistic and fiting to the initial search, which is {product}. "
-            f"The answer from you should be strictly a string with the name and price devided by coma, "
-            f"you can not take the name nor the price from anywhere else but the list that I gave you. and be carefull, voda is not a vodka  "
-        )
-        best_pick: str = message_to_gpt(prompt)
-    else:  # THE LAST BASTION TO FIND THE PRICE
-        prompt = (
-            f" I want to buy {product} in Tesco store in Prague, Czech Republic, please tell me the approximate price for it"
-            f"The answer from you should be strictly a string with the name and price devided by coma, "
-            f"you can not take the name  from anywhere else but the name that I gave you.  "
-        )
-        best_pick: str = message_to_gpt(prompt) + " last resort GPT"
-
-    # print(best_pick)#TODO DELETE
-
-    return best_pick
-
-
-async def choosing_right_product_async(
-    list_of_product_and_prices: list[tuple[str, str]], product: str
-):
-    return await to_thread(choosing_right_product, list_of_product_and_prices, product)
+# async def choosing_right_product_async(
+#     list_of_product_and_prices: list[tuple[str, str]], product: str
+# ):
+#     return await to_thread(choosing_right_product, list_of_product_and_prices, product)
 
 
 # def full_search(monney:str) ->list[str]:
@@ -140,8 +103,8 @@ async def process_product(product: str) -> str:
     return best_pick
 
 
-async def full_search_async(type:str, number_of_days:int) -> tuple[str,list[str]]:
-    recipe = get_recipe(type, number_of_days)
+async def full_search_async_serp(type:str, number_of_days:int) -> tuple[str,list[str]]:
+    recipe = get_recipe_from_gpt(type, number_of_days)
 
 
     full_shop_list = await to_thread(get_shopping_list, recipe)
@@ -152,6 +115,22 @@ async def full_search_async(type:str, number_of_days:int) -> tuple[str,list[str]
 
     # print(results)#TODO DELETE THIS
     return recipe, results
+
+async def full_search_async_gpt(type:str, number_of_days:str) -> tuple[str,list[str]]:
+    recipe = get_recipe_from_gpt(type, number_of_days)
+
+
+    full_shop_list = await to_thread(get_shopping_list, recipe)
+
+    # tasks = [to_thread(get_prices_gpt, item) for item in full_shop_list]
+    # results = await asyncio.gather(*tasks)
+
+    # print(results)#TODO DELETE THIS
+    # print (full_shop_list)
+    return recipe, full_shop_list
+
+
+# asyncio.run(full_search_async_gpt('normal', '1'))
 
 
 async def seed(products: list[str]):

@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Dispatcher
 from src.integrations.bot import bot
-from src.keyboards.keyboards import general_menu_keyboard
+from src.keyboards.keyboards import general_menu_keyboard, start_keyboard
 from src.handlers import setup_routers
 from src.db.db import init_db
 
@@ -15,7 +15,8 @@ async def main():
     print("🚀 Bot is starting...")
 
     await dp.start_polling(bot)
-    await general_menu_keyboard()
+    await start_keyboard()
+    # await general_menu_keyboard()
 
 
 if __name__ == "__main__":
