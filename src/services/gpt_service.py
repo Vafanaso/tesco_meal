@@ -9,70 +9,17 @@ from sqlalchemy import select, delete
 
 
 from src.schemas.serp import SerpResults
+#-------------------------------------------------------------------------------------
+#------------------------------- SERP DRIVEN FUNCTIONS -------------------------------
+#-------------------------------------------------------------------------------------
 
-
-def snippet_price_search (product: str, snippet:str):
+def serp_snippet_price_search (product: str, snippet:str):
     res = message_to_gpt(f"I am sending you a snippet regarding {product}. "
                 f"Find a price and send ONLY numbers + Kč. "
                 f"If no price, return exactly: GPT + SERP: no price. "
                 f"Snippet: {snippet}")
     return res
 
-
-def get_recipe_from_gpt(type:str, number_of_days:int) -> str:
-    """
-    function makes a recipe with chatgpt
-    :param recipe_option: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
-    :param number_of_days:int - a number of days that recipe should be done for
-    :return: recipe:str - a recipe for the meals
-    """
-    recipe = message_to_gpt(f'I want to cook something, your task is to give me a {type} recipe for {number_of_days} days,, if the type is budget,'
-                            f' i am willing to spend around 150 czech krouns for a day,for normal 300 czech krouns per day, and snob 500+ per day or two.'
-                            f' please, answer this message with only a recipe and meals description, the recipe shouldnt be longer that 3500 chars')
-    return recipe
-
-# def get_recipe(recipe_option:str, number_of_days:int) -> str:
-#     """
-#     function makes a recipe with chatgpt
-#     :param recipe_option: a type of recipe, for ex (budget- cheap, normal, snob - expensive).
-#     :param number_of_days:int - a number of days that recipe should be done for
-#     :return: recipe:str - a recipe for the meals
-#     """
-#     recipe = get_recipe_from_gpt(recipe_option, number_of_days)
-#
-#     #
-#     # print(recipe)#TODO DELETE THIS
-#
-#     return recipe
-
-
-def shopping_list(recipe:str) -> str:
-    initial_products = message_to_gpt(
-        f"give me a list of groceries for this recipe {recipe}, give me only products, without the prices, "
-        f" all i need is a list of products and their aproximate prices, divided by coma, the names of the product should be in czech"
-        f" and readable for example not červenáčočka but červená čočka. "
-        f"Examle of correct answer = Ovesné vločky jemné – 1 kg: 29 Kč, Banán – 29 Kč/kg, Tesco Skořice mletá 40 g – 14 Kč "
-
-    )
-    return initial_products
-
-
-def get_shopping_list(recipe: str) -> list[str]:
-    """
-    fucntion takes a recipe and asks gpt and gives a list of products for this recipe
-    :param recipe:str - a recipe for meals
-    :return: products:list[str] - list of products that you should buy
-    """
-    initial_products = shopping_list(recipe)
-
-    # This replaces the 'for char in initial_products' loop
-    # 1. split(",") breaks the string into a list at every comma
-    # 2. .strip() removes leading/trailing spaces but keeps spaces BETWEEN words
-    # 3. 'if item.strip()' ensures no empty strings are added to the list
-    products = [item.strip() for item in initial_products.split(",") if item.strip()]
-
-    # print(products)  # TODO DELETE THIS
-    return products
 
 def choosing_right_product(
     list_of_product_and_prices: list[tuple[str, str]], product: str
@@ -105,9 +52,94 @@ async def choosing_right_product_async(
     return await to_thread(choosing_right_product, list_of_product_and_prices, product)
 
 
-def get_prices_gpt(product:str) -> str:
-    return message_to_gpt(f"Give me an approximate price for this product: {product} in czk,if the price is from tesco cz it is better,"
-                          f" your answer has to be strictly a product name and price, also consider thinking about small amounts of a product,"
-                          f" for example 100 g of cheeze or only 1 kg of potatoes and for example only 10 egs")
+
+#-----------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------- PURE GPT DRIVEN FUNCTIONS -------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
+
+
+# def get_recipe_from_gpt(budget:str, number_of_days:int) -> tuple[str,str]:
+#     """
+#     function makes a recipe with chatgpt
+#     :param budget: a type of recipe, for ex (cheap, normal, snob - expensive).
+#     :param number_of_days:int - a number of days that recipe should be done for
+#     :return: tuple of name of the recipe and the recipe itself
+#     """
+#     recipe = message_to_gpt(f'I want to cook something new i already have this recepies, your task is to give me a {budget} recipe for {number_of_days} days,, if the type is cheep,'
+#                             f' i am willing to spend around 150 czech krouns for a day,for normal 300 czech krouns per day, and snob 500+ per day or two.'
+#                             f' please, answer this message with only a recipe and meals description, the recipe shouldnt be longer that 3500 chars, '
+#                             f'THE BEGING OF THE RECIPE HAS TO BE A SHORT SENTENCE WHERE YOU WILL SAY THE NAMES OF THE MEALS DEVIDED BY COMA, '
+#                             f'for example Goulash, Chicken steak with bulgur, Greek yogurt with berries.')
+#
+#     name_temp:list =[]
+#     for char in recipe:
+#         if char == '.':
+#             break
+#         name_temp.append(char)
+#     name = ''.join(name_temp)
+#     return name, recipe
+
+
+def get_recipe_from_gpt(budget: str, number_of_days: int) -> tuple[str, str]:
+    """
+    function makes a recipe with chatgpt
+    :param budget: a type of recipe, for ex (cheap, normal, snob - expensive).
+    :param number_of_days:int - a number of days that recipe should be done for
+    :return: tuple of name of the recipe and the recipe itself
+    """
+
+    prompt = (
+        f"I want a {budget} recipe for {number_of_days} days. "
+        f"Budget guidelines: cheap (~150 CZK/day), normal (~300 CZK/day), snob (500+ CZK/day). "
+        f"Format: The VERY FIRST line must be only the names of the meals divided by commas. "
+        f"Followed by the full recipe and description (max 3500 chars)."
+    )
+
+    recipe_content = message_to_gpt(prompt)
+
+    # Split by newline to get the first line (the names)
+    lines = recipe_content.strip().split('\n')
+    name = lines[0] if lines else "New Recipe"
+
+    return name, recipe_content
+
+
+
+
+async def shopping_list(recipe:str, session) -> str:
+
+    exising_products = await session.execute(select(Product.full_name, Product.id))
+    exising_products_list = exising_products.all()
+    initial_products = message_to_gpt(
+        f"give me a list of groceries for this recipe {recipe}, give me only products, without the prices, "
+        f" all i need is a list of products and their aproximate prices, divided by coma, the names of the product should be in czech"
+        f" and readable for example not červenáčočka but červená čočka. "
+        f"Examle of correct answer = Ovesné vločky jemné – 1 kg: 29 Kč, Banán – 29 Kč/kg, Tesco Skořice mletá 40 g – 14 Kč "
+        f"Before trying to come up with a product that is needed for the recipe, try to find in this list of products and their ids {exising_products_list},"
+        f" if it is there, just take its id, if you dont see anything fitting, give a new one, now lets say that from previous example you found that Ovesné vločky jemné "
+        f"are in the list that i gave you, and it has an id 4, so now the correct answer will be  4, Banán – 29 Kč/kg, Tesco Skořice mletá 40 g – 14 Kč "
+
+    )
+    return initial_products
+
+
+def get_shopping_list(recipe: str, session) -> list[str]:
+    """
+    Uses function shopping_list to get a list of products or id;s and then makes it into python list
+    :param session: - db session
+    :param recipe:str - a recipe for meals
+    :return: products:list[str] - list of products that you should buy
+    """
+    initial_products = shopping_list(recipe, session)
+
+    # This replaces the 'for char in initial_products' loop
+    # 1. split(",") breaks the string into a list at every comma
+    # 2. .strip() removes leading/trailing spaces but keeps spaces BETWEEN words
+    # 3. 'if item.strip()' ensures no empty strings are added to the list
+    products = [item.strip() for item in initial_products.split(",") if item.strip()]
+
+    # print(products)  # TODO DELETE THIS
+    return products
+
 
 

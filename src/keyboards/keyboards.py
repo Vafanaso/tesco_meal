@@ -31,7 +31,7 @@ async def products_keyboard():
 
 def start_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[KeyboardButton(text="Start")],
+        keyboard=[[KeyboardButton(text="Start")]],
         resize_keyboard= True,
         input_field_placeholder="Press start to begin",
     )
@@ -54,7 +54,7 @@ def general_menu_keyboard() -> ReplyKeyboardMarkup:
 def menu_type_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Budget"), KeyboardButton(text="Normal"), KeyboardButton(text="Snob")]
+            [KeyboardButton(text="Cheep"), KeyboardButton(text="Normal"), KeyboardButton(text="Snob")]
         ],
         resize_keyboard=True
     )

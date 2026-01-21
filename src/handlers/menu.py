@@ -31,7 +31,7 @@ async def cmd_start(message: Message, state: FSMContext):
         reply_markup=menu_type_keyboard()
     )
 
-@menu_router.message(MenuStates.choosing_type, F.text.in_(["Budget", "Normal", "Snob"]))
+@menu_router.message(MenuStates.choosing_type, F.text.in_(["Cheep", "Normal", "Snob"]))
 async def choose_type(message: Message, state: FSMContext):
     await state.update_data(menu_type=message.text.lower())
     await state.set_state(MenuStates.choosing_days)
