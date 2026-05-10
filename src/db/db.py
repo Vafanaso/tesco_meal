@@ -2,7 +2,7 @@ from src.config.settings import DB_URL, DB_LOCALHOST
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from src.db.models import Base
 
-engine = create_async_engine(DB_LOCALHOST, echo=True)
+engine = create_async_engine(DB_URL, echo=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
