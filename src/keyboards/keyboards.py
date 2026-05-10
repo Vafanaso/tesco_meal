@@ -1,27 +1,40 @@
+"""Telegram keyboards used by the menu flow."""
+
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    ReplyKeyboardMarkup,
     KeyboardButton,
+    ReplyKeyboardMarkup,
 )
+from sqlalchemy import select
 
 from src.db.db import SessionLocal
 from src.db.models import Product
-from sqlalchemy import select
 
 
-async def products_keyboard():
+async def products_keyboard() -> InlineKeyboardMarkup:
+    """Build the inline shopping-list keyboard from the current Product rows.
+
+    Each row shows a green checkmark when ``Product.bought`` is true and an
+    empty box otherwise. The product price is appended to the label when
+    available so the user sees the cost on every button.
+
+    Returns:
+        Inline keyboard ready to attach to a Telegram message.
+    """
     async with SessionLocal() as session:
         result = await session.execute(select(Product))
         products = result.scalars().all()
 
-    buttons = []
+    buttons: list[list[InlineKeyboardButton]] = []
     for item in products:
         emoji = "✅" if item.bought else "⬜"
+        price_part = f" - {item.price:g} Kč" if item.price is not None else ""
         buttons.append(
             [
                 InlineKeyboardButton(
-                    text=f"{emoji} {item.name}", callback_data=f"product:{item.id}"
+                    text=f"{emoji} {item.name}{price_part}",
+                    callback_data=f"product:{item.id}",
                 )
             ]
         )
@@ -29,40 +42,38 @@ async def products_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def start_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Start")]],
-        resize_keyboard= True,
-        input_field_placeholder="Press start to begin",
-    )
-def general_menu_keyboard() -> ReplyKeyboardMarkup:
+def menu_type_keyboard() -> ReplyKeyboardMarkup:
+    """Reply keyboard for choosing a budget tier."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="Start"),
-                KeyboardButton(text="New menu"),
-            ],
-            [
-                KeyboardButton(text="Menu"),
-                KeyboardButton(text="List of products"),
-            ],
+                KeyboardButton(text="Cheap"),
+                KeyboardButton(text="Normal"),
+                KeyboardButton(text="Snob"),
+            ]
         ],
         resize_keyboard=True,
-        input_field_placeholder="Choose an action…",
     )
 
-def menu_type_keyboard():
+
+def days_keyboard() -> ReplyKeyboardMarkup:
+    """Reply keyboard for choosing how many days to plan for."""
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Cheep"), KeyboardButton(text="Normal"), KeyboardButton(text="Snob")]
+            [
+                KeyboardButton(text="1"),
+                KeyboardButton(text="2"),
+                KeyboardButton(text="3"),
+            ]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
     )
 
-def days_keyboard():
+
+def start_keyboard() -> ReplyKeyboardMarkup:
+    """Persistent keyboard with a single 'Start' button to kick off the flow."""
     return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="1"), KeyboardButton(text="2"), KeyboardButton(text="3")]
-        ],
-        resize_keyboard=True
+        keyboard=[[KeyboardButton(text="Start")]],
+        resize_keyboard=True,
+        input_field_placeholder="Press Start to begin",
     )

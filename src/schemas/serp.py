@@ -1,73 +1,77 @@
-from typing import List, Optional, Dict
-from pydantic import BaseModel, HttpUrl, Field
+"""Pydantic models for the SerpAPI Google-search JSON response.
 
-class SearchMetadata(BaseModel):
-    id: str
-    status: str
-    json_endpoint: HttpUrl
-    pixel_position_endpoint: HttpUrl
-    created_at: str
-    processed_at: str
-    google_url: HttpUrl
-    raw_html_file: HttpUrl
-    total_time_taken: float
+Only ``organic_results`` is consumed by the rest of the codebase, but we
+declare the surrounding envelope so we can opt into stricter validation later.
+All non-essential fields are ``Optional`` because SerpAPI responses vary
+depending on the query.
+"""
 
-class SearchParameters(BaseModel):
-    engine: str
-    q: str
-    location_requested: str
-    location_used: str
-    google_domain: str
-    hl: str
-    gl: str
-    device: str
+from typing import Dict, List, Optional
 
-class SearchInformation(BaseModel):
-    query_displayed: str
-    total_results: int
-    time_taken_displayed: float
-    organic_results_state: str
+from pydantic import BaseModel, HttpUrl
+
 
 class DetectedExtensions(BaseModel):
+    """Structured price/rating data extracted by SerpAPI."""
+
     price: Optional[float] = None
     currency: Optional[str] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
 
+
 class Bottom(BaseModel):
+    """The lower section of a Google rich snippet."""
+
     detected_extensions: Optional[DetectedExtensions] = None
     extensions: Optional[List[str]] = None
 
+
 class RichSnippet(BaseModel):
+    """A Google rich snippet attached to an organic result."""
+
     bottom: Optional[Bottom] = None
 
+
 class OrganicResult(BaseModel):
+    """One organic result row from SerpAPI."""
+
     position: int
     title: str
-    link: HttpUrl
-    redirect_link: HttpUrl
-    displayed_link: str
+    link: Optional[HttpUrl] = None
+    redirect_link: Optional[HttpUrl] = None
+    displayed_link: Optional[str] = None
     favicon: Optional[HttpUrl] = None
     snippet: Optional[str] = None
     snippet_highlighted_words: Optional[List[str]] = None
     source: Optional[str] = None
     rich_snippet: Optional[RichSnippet] = None
 
+
 class Pagination(BaseModel):
+    """Google-style pagination block."""
+
     current: int
     next: Optional[HttpUrl] = None
-    other_pages: Dict[str, HttpUrl]
+    other_pages: Dict[str, HttpUrl] = {}
+
 
 class SerpApiPagination(BaseModel):
+    """SerpAPI's own pagination block (different shape from Google's)."""
+
     current: int
     next_link: Optional[HttpUrl] = None
     next: Optional[HttpUrl] = None
-    other_pages: Dict[str, HttpUrl]
+    other_pages: Dict[str, HttpUrl] = {}
+
 
 class SerpResults(BaseModel):
-    search_metadata: SearchMetadata
-    search_parameters: SearchParameters
-    search_information: SearchInformation
+    """Top-level SerpAPI response envelope.
+
+    The metadata blocks that used to live on this class are dropped because
+    we never read them and SerpAPI's exact field set varies by query.
+    """
+
     organic_results: List[OrganicResult] = []
     pagination: Optional[Pagination] = None
     serpapi_pagination: Optional[SerpApiPagination] = None

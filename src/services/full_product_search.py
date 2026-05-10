@@ -1,154 +1,87 @@
-from curses.ascii import isdigit
-from turtledemo.paint import switchupdown
+"""Top-level search orchestration: combines GPT recipe + shopping list + per-item lookup."""
 
-from certifi import where
-
-from src.db.db import SessionLocal, engine
-from src.db.models import Product
-from src.integrations.gpt import message_to_gpt
-from src.integrations.serp_api import serp_search
-from src.exceptions.exceptions import InvalidSearchResult
-from asyncio import to_thread
 import asyncio
-from sqlalchemy import select, delete
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from asyncio import to_thread
 
-from src.prompts import snippet_price_search, shopping_list,  get_recipe_from_gpt
-from src.schemas.serp import SerpResults
-from src.services.gpt_service import choosing_right_product_async, get_shopping_list
+from sqlalchemy import delete
+
+from src.db.db import SessionLocal
+from src.db.models import Product
+from src.services.gpt_service import (
+    choosing_right_product_async,
+    get_recipe_from_gpt,
+    get_shopping_list,
+)
 from src.services.serp_service import get_price_async
-
-
-#-------------------------------------------------------------------------------------
-#------------------------------- SERP DRIVEN FUNCTIONS -------------------------------
-#-------------------------------------------------------------------------------------
+from src.utils.price import parse_price
 
 
 async def process_product(product: str) -> str:
+    """Look up SerpAPI prices for one ingredient and ask GPT to pick the best one.
+
+    Args:
+        product: Czech ingredient name (e.g. "rýže").
+
+    Returns:
+        A "Name, price" string chosen by GPT from SerpAPI hits, or a GPT
+        fallback estimate if SerpAPI returned nothing.
+    """
     prod_options = await get_price_async(product)
     best_pick = await choosing_right_product_async(prod_options, product)
     return best_pick
 
 
-async def full_search_async_serp(budget:str, number_of_days:str) -> tuple[str,list[str]]:
-    recipe = get_recipe_from_gpt(budget, number_of_days)
+async def full_search_async_serp(
+    budget: str, number_of_days: str
+) -> tuple[str, list[str]]:
+    """Generate a recipe and resolve every ingredient via SerpAPI + GPT.
 
+    Args:
+        budget: One of "cheap", "normal", "snob" (price tier).
+        number_of_days: How many days the meal plan should cover.
 
+    Returns:
+        Tuple of (recipe_text, list_of_resolved_product_strings).
+    """
+    _, recipe = get_recipe_from_gpt(budget, number_of_days)
     full_shop_list = await to_thread(get_shopping_list, recipe)
 
     tasks = [process_product(item) for item in full_shop_list]
-
     results = await asyncio.gather(*tasks)
-
-    # print(results)#TODO DELETE THIS
-    return recipe, results
-
-#-----------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------- PURE GPT DRIVEN FUNCTIONS -------------------------------------------------
-#-----------------------------------------------------------------------------------------------------------------------------
+    return recipe, list(results)
 
 
-async def full_search_async_gpt(budget:str, number_of_days:str) -> tuple[str,list[str]]:
-    recipe = get_recipe_from_gpt(budget, number_of_days)
+async def full_search_async_gpt(
+    budget: str, number_of_days: str
+) -> tuple[str, list[str]]:
+    """Generate a recipe and ask GPT (only) to produce a priced shopping list.
 
+    Used when SerpAPI quota is exhausted. Cheaper but prices are estimates.
 
+    Args:
+        budget: One of "cheap", "normal", "snob" (price tier).
+        number_of_days: How many days the meal plan should cover.
+
+    Returns:
+        Tuple of (recipe_text, list_of_product_strings_with_prices).
+    """
+    _, recipe = get_recipe_from_gpt(budget, number_of_days)
     full_shop_list = await to_thread(get_shopping_list, recipe)
-
-
-    # print (full_shop_list)
     return recipe, full_shop_list
 
 
-# asyncio.run(full_search_async_gpt('normal', '1'))
+async def seed(products: list[str]) -> None:
+    """Replace the Product table with the given items.
 
+    Each input string is parsed into (name, price) before insert. The previous
+    shopping list is wiped so each new menu starts from a clean slate.
 
-
-#-----------------------------------------------------------------------------------------------------------------------------
-#------------------------------------------------- FUNCTIONS BOTH SERP AND GPT ARE USING -------------------------------------
-#-----------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-async def seed_and_return(products: list[str], session: AsyncSession) -> list[int]:
-    product_ids: list[int] = []
-
-    for item in products:
-        if item.isnumeric():
-            # already a product ID
-            product_ids.append(int(item))
-        else:
-            # new product name
-            product = Product(name=item)
-            session.add(product)
-            await session.flush()
-            product_ids.append(product.id)
-
-    await session.commit()
-    return product_ids
-
-# async def main():
-#     async with async_sessionmaker(engine)() as session:
-#         result = await seed_and_return(
-#             ['2', '3', 'cucumbers good -4 kc', '7', 'BFG 1000 - 56 kc'],
-#             session=session
-#         )
-#         print(result)
-#
-# asyncio.run(main())
-
-
-async def seed(products: list[str]):
+    Args:
+        products: Strings like "Tesco Oats 500g, 29.9 Kč".
+    """
     async with SessionLocal() as session:
         await session.execute(delete(Product))
-
         for item in products:
-            session.add(Product(name=item))
+            name, price = parse_price(item)
+            session.add(Product(name=name, price=price))
         await session.commit()
-
-
-
-
-
-# async def test_all():
-#     await full_search_async("cheep", 2)
-#
-# asyncio.run(test_all())
-"""
-Output N1
-
-
-{'https://serpapi.com/searches/9f4dd658060e8a18/693f02a29f8abc1d670e5375.json',
-"""
-
-"""Day 1
-
-Breakfast: Oats with banana and peanut butter
-- Ingredients: 1 cup rolled oats, 2 cups water or milk, 1 banana, 1–2 tbsp peanut butter, pinch of cinnamon (optional)
-- Steps: In a pot, bring water/milk to a boil. Add oats; simmer 5–7 minutes until thick. Stir in sliced banana and peanut butter. Sprinkle with cinnamon if desired.
-
-Lunch: Simple lentil soup
-- Ingredients: 1 cup red or green lentils, 1 small onion (diced), 1 carrot (diced), 2 cloves garlic (minced), 1 can crushed tomatoes (400 g), 4 cups vegetable stock or water, salt, pepper, 1/2 tsp cumin, 1/2 tsp paprika, 1 tbsp oil
-- Steps: Sauté onion and carrot in oil until soft. Add garlic 1 minute. Stir in lentils, tomatoes, stock, and spices. Simmer 25–30 minutes until lentils are tender. Season to taste.
-
-Dinner: Rice with beans and roasted veg
-- Ingredients: 1 cup rice (uncooked), 1 can beans (400 g), 1 small onion (sliced), 1 bell pepper (diced), 2 cloves garlic (minced), 1/2 tsp cumin, 1/2 tsp chili powder, 1 tbsp oil, salt, pepper
-- Steps: Cook rice according to package. Sauté onion, pepper, and garlic in oil until soft. Add beans and spices; warm through. Serve bean mix over rice.
-
-Day 2
-
-Breakfast: Tomato egg toast
-- Ingredients: 4 slices bread, 4 eggs, 2 tomatoes (sliced), 1–2 tsp oil or butter, salt, pepper
-- Steps: Toast bread. Sauté or fry eggs to desired doneness. Top toast with tomato slices, add eggs on top or side, season with salt and pepper.
-
-Lunch: Reheated lentil soup (leftovers from Day 1)
-- Steps: Gently reheat lentil soup on stovetop or microwave. Serve with a slice of bread or a simple side salad if available.
-
-Dinner: Potato chickpea curry with rice
-- Ingredients: 2 large potatoes (cubed), 1 can chickpeas (drained), 1 can tomatoes (400 g), 1 onion (chopped), 2 cloves garlic (minced), 1–2 tbsp curry powder, 1 tbsp oil, salt, pepper, 1 cup rice (uncooked)
-- Steps: Cook rice according to package. Sauté onion and garlic in oil until fragrant. Add curry powder and toast 1 minute. Stir in potatoes, tomatoes, and 1 cup water; simmer until potatoes are tender (about 15–20 minutes). Add chickpeas; heat through. Season and serve with rice.
-['ovesnévločky', 'voda', 'mléko', 'banán', 'arašídovémáslo', 'skořice', 'červenáčočka', 'zelenáčočka', 'cibule', 'mrkev', 'česnek', 'drcenárajčata', 'zeleninovývývar', 'sůl', 'pepř', 'římskýkmín', 'paprika', 'olej', 'fazole', 'paprikasladká', 'chilliprášek', 'rýže', 'chléb', 'vejce', 'rajčata', 'brambory', 'cizrna', 'kariprášek']
-
-
-['Emco Oatmeal Fine Wholegrain 500g, 29.9', 'Pražská Original Vodka 0.5L, 149.9 Kč', 'Trvanlivé mléko - Tesco Groceries, 12,90 Kč', 'Tesco Banana Chips 100g,24.9', '4Slim Arašídové máslo s belgickou čokoládou 500g, 224.9', 'Kotányi Skořice mletá 25g - Tesco Groceries, 25.9 Kč', 'Tesco Organic Red Whole Lentils 500g, 51.9', 'Tesco Green Lentils 500g, 33.9', 'Cibule - Tesco Groceries,2,69 Kč', 'Tesco Carrot Bundle,19.9', 'Česnek - Tesco Groceries,8,96 Kč', 'Gustodoro Crushed Tomatoes 400g,53.9', 'Hami Meat and Vegetable Side Dish ...,49.9', 'Solné Mlýny Edible Sea Salt with Iodine 1kg,29.9', 'Vitana Pepř černý mletý 18g - Tesco Groceries, 21.9 Kč', 'Vitana Římský kmín celý 25g - Tesco Groceries,29.9', 'Tesco Yellow Paprika,23.98', 'Tesco Auto Motor Oil 5W-30 1L, 209.9', 'Tesco White Beans 500g,34.9', 'Kotányi Ground Sweet Paprika 30g, 15.9', 'Tesco Red Beans in Chilli Sauce 400g,17.9', 'Rýže - Tesco Groceries, 69,90 Kč', 'Tesco Sliced Bread 500g,37.9', 'Tesco Čerstvá vejce z podestýlky M 30 ks,229.9', 'Tesco Tomatoes Oval 500g,49.9', 'Tesco Potatoes 2.5kg, 79.9', 'Tesco Organic Chickpeas 500g, 62.9', 'kariprášek, 25-35 Kč last resort GPT']
-"""

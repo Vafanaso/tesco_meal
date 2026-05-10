@@ -1,4 +1,5 @@
-class InvalidSearchResult(Exception):
-    """when invalid search product"""
+"""Project-specific exceptions."""
 
-    pass
+
+class InvalidSearchResult(Exception):
+    """Raised when SerpAPI returns no usable organic results for a query."""

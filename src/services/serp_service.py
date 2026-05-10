@@ -1,56 +1,64 @@
-from src.db.db import SessionLocal
-from src.db.models import Product
-from src.integrations.gpt import message_to_gpt
-from src.integrations.serp_api import serp_search
-from src.exceptions.exceptions import InvalidSearchResult
-from asyncio import to_thread
-import asyncio
-from sqlalchemy import select, delete
+"""SerpAPI-based price lookup for individual products."""
 
-from src.prompts import snippet_price_search, shopping_list,  get_recipe_from_gpt
+from asyncio import to_thread
+
+from src.exceptions.exceptions import InvalidSearchResult
+from src.integrations.serp_api import serp_search
+from src.prompts import snippet_price_search
 from src.schemas.serp import SerpResults
 
-def get_price(product: str) -> list[tuple]:
+
+def get_price(product: str) -> list[tuple[str, str | float]]:
+    """Look up Tesco prices for a product via SerpAPI Google search.
+
+    Walks the organic results, preferring the structured rich-snippet price.
+    Falls back to asking GPT to extract a price from the snippet text. Stops
+    once three usable hits are collected.
+
+    Args:
+        product: Generic Czech ingredient name (e.g. "rýže").
+
+    Returns:
+        Up to three (title, price) pairs from SerpAPI. The price may be a
+        ``float`` (from rich snippet) or a ``str`` like ``"29.9 Kč"`` (from
+        the GPT snippet extractor). Empty list if nothing usable was found.
+
+    Raises:
+        InvalidSearchResult: If SerpAPI returned no ``organic_results`` field.
     """
-    Fuction uses serp_api to scrap google search for product,
-    :param product:str - a general name for the product
-    :return:prices:list[teple] - a list max 3 tuples that have a tittle of the product
-    in tesco and price that was found in serp_api json result
-    """
-    prices: list[tuple[str, str]] = []
-    i = 0
-    results:SerpResults = serp_search(product)
-    # print (results)
+    prices: list[tuple[str, str | float]] = []
+    results: SerpResults = serp_search(product)
+
     try:
-        max_products_ammount = len(results.organic_results)
-    except KeyError as e:  # Does this count as custom exception EDIKU?
+        max_products_amount = len(results.organic_results)
+    except KeyError as e:
         raise InvalidSearchResult("Invalid product name for Serp API") from e
-    # print (max_products_ammount)
 
-    while len(prices) < 3 and i < max_products_ammount:
+    i = 0
+    while len(prices) < 3 and i < max_products_amount:
         item = results.organic_results[i]
-        title:str = item.title
+        title: str = item.title
 
-        if item.rich_snippet and item.rich_snippet.bottom and item.rich_snippet.bottom.detected_extensions:
-            price = item.rich_snippet.bottom.detected_extensions.price
+        if (
+            item.rich_snippet
+            and item.rich_snippet.bottom
+            and item.rich_snippet.bottom.detected_extensions
+            and item.rich_snippet.bottom.detected_extensions.price is not None
+        ):
+            price: str | float = item.rich_snippet.bottom.detected_extensions.price
         else:
-            snippet = results.organic_results[i].snippet
-            price = snippet_price_search(product, snippet)# GPT search for price in snippet
+            snippet = item.snippet or ""
+            price = snippet_price_search(product, snippet)
             if price in ("GPT + SERP: no price", "GPT + SERP: no price."):
                 i += 1
                 continue
 
         prices.append((title, price))
-        i+=1
-
-    # print(product)#TODO DELETE THIS
-    # print(prices)#TODO DELETE THIS
+        i += 1
 
     return prices
 
 
-
-async def get_price_async(product: str):
+async def get_price_async(product: str) -> list[tuple[str, str | float]]:
+    """Async wrapper around ``get_price`` (runs blocking SerpAPI call in a thread)."""
     return await to_thread(get_price, product)
-
-
