@@ -143,8 +143,7 @@ products_keyboard renders inline buttons; toggle_product flips `bought`
 
 ### Budget handling
 
-The professor's review flagged that there was no real budget tracking. The
-project now:
+Budget tracking works in two layers:
 
 - stores a numeric `price` column on `Product`,
 - extracts the price from the GPT/SerpAPI response strings via
